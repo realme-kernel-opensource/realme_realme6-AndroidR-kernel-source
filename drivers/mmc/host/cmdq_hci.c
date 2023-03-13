@@ -35,6 +35,11 @@
 #define DCMD_SLOT 31
 #define NUM_SLOTS 32
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Add for record emmc  driver iowait
+#include <soc/oplus/oppo_healthinfo.h>
+#endif /*VENDOR_EDIT*/
+
 /* 1 sec */
 #define HALT_TIMEOUT_MS 1000
 
@@ -695,6 +700,11 @@ ring_doorbell:
 
 	/* Ensure the task descriptor list is flushed before ringing doorbell */
 	wmb();
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+    mrq->cmdq_request_time_start = ktime_get();
+#endif
+	
 	cmdq_writel(cq_host, 1 << tag, CQTDBR);
 	/* Commit the doorbell write immediately */
 	wmb();
@@ -733,6 +743,11 @@ static void cmdq_finish_data(struct mmc_host *mmc, unsigned int tag)
 	}
 	mrq->done(mrq);
 }
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Add for record  emmc  driver iowait
+extern int ohm_flash_type;
+#endif /*VENDOR_EDIT*/
 
 irqreturn_t cmdq_irq(struct mmc_host *mmc, int err)
 {
@@ -896,6 +911,13 @@ _err:
 		 */
 		for_each_set_bit(tag, &comp_status, cq_host->num_slots) {
 			/* complete the corresponding mrq */
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+        // Add for record emmc driver io wait
+        if (OHM_FLASH_TYPE_EMC == ohm_flash_type) {
+            ohm_schedstats_record(OHM_SCHED_EMMCIO, current,
+                ktime_ms_delta(ktime_get(), mrq->cmdq_request_time_start));
+        }
+#endif /*VENDOR_EDIT*/
 #ifdef MMC_CQHCI_DEBUG
 			pr_debug("%s: %s completing tag -> %lu\n",
 				 mmc_hostname(mmc), __func__, tag);

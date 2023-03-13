@@ -179,7 +179,9 @@ struct mmc_request {
 #ifdef CONFIG_MTK_EMMC_HW_CQ
 	struct mmc_cmdq_req *cmdq_req;
 #endif
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+    ktime_t cmdq_request_time_start;
+#endif
 	/* Allow other commands during this ongoing data transfer or busy wait */
 	bool			cap_cmd_during_tfr;
 

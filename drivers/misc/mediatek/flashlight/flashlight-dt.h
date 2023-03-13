@@ -11,8 +11,18 @@
  * GNU General Public License for more details.
  */
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
+#define OPLUS_FEATURE_CAMERA_COMMON
+#endif
+
 #ifndef _FLASHLIGHT_DT_H
 #define _FLASHLIGHT_DT_H
+
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+#define MP3331_DTNAME "mediatek,flashlights_mp3331"
+#define AW3642_DTNAME     "mediatek,flashlights_aw3642"
+#define AW3642_DTNAME_I2C "mediatek,strobe_main_2"
+#endif
 
 #define DUMMY_GPIO_DTNAME "mediatek,flashlights_dummy_gpio"
 #define DUMMY_DTNAME      "mediatek,flashlights_dummy"
@@ -30,5 +40,7 @@
 #define RT4505_DTNAME     "mediatek,flashlights_rt4505"
 #define RT4505_DTNAME_I2C "mediatek,strobe_main"
 #define RT5081_DTNAME     "mediatek,flashlights_rt5081"
+#define MONET_DTNAME      "mediatek,flashlights_monet"
+#define MONET_DTNAME_I2C  "mediatek,strobe_main"
 
 #endif /* _FLASHLIGHT_DT_H */

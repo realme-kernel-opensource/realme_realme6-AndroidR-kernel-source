@@ -35,6 +35,10 @@ enum GPIO_CTRL_STATE_CAM {
 	GPIO_CTRL_STATE_LDO_VCAMD_L,
 	GPIO_CTRL_STATE_LDO_VCAMIO_H,
 	GPIO_CTRL_STATE_LDO_VCAMIO_L,
+	#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	GPIO_CTRL_STATE_LDO_VCAMA_1_H,
+	GPIO_CTRL_STATE_LDO_VCAMA_1_L,
+	#endif
 	GPIO_CTRL_STATE_MAX_NUM_CAM,
 };
 
@@ -66,6 +70,11 @@ struct GPIO {
 	struct pinctrl       *ppinctrl_switch;
 	struct pinctrl_state *ppinctrl_state_switch[
 		GPIO_CTRL_STATE_MAX_NUM_SWITCH];
+#endif
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	#ifdef SENSOR_PLATFORM_5G_H
+	struct pinctrl_state *pinctrl_state_ldo_enable[2];
+	#endif
 #endif
 	struct mutex         *pgpio_mutex;
 };

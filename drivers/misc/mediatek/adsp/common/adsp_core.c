@@ -189,9 +189,15 @@ static irqreturn_t adsp_irq_dispatcher(int irq, void *data)
 	adsp_mt_clr_spm(pdata->cid);
 	if (!pdata->irq_cb || !pdata->clear_irq)
 		return IRQ_NONE;
-	pdata->clear_irq(pdata->cid);
-	pdata->irq_cb(irq, pdata->data, pdata->cid);
-	return IRQ_HANDLED;
+	#ifdef OPLUS_BUG_STABILITY
+        pdata->irq_cb(irq, pdata->data, pdata->cid);
+        pdata->clear_irq(pdata->cid);
+        wmb();
+	#else /* OPLUS_BUG_STABILITY */
+        pdata->clear_irq(pdata->cid);
+        pdata->irq_cb(irq, pdata->data, pdata->cid);
+	#endif /* OPLUS_BUG_STABILITY */
+        return IRQ_HANDLED;
 }
 
 int adsp_irq_registration(u32 core_id, u32 irq_id, void *handler, void *data)

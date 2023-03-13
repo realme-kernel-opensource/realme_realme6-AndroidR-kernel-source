@@ -19,6 +19,9 @@
 #include "adsp_platform_driver.h"
 #include "adsp_excep.h"
 #include "adsp_logger.h"
+#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+#include <soc/oplus/system/oplus_mm_kevent_fb.h>
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 #define ADSP_MISC_EXTRA_SIZE    0x400 //1KB
 #define ADSP_MISC_BUF_SIZE      0x10000 //64KB
@@ -155,6 +158,9 @@ static void adsp_exception_dump(struct adsp_exception_control *ctrl)
 	int ret = 0, n = 0, coredump_id = 0, coredump_size = 0;
 	struct adsp_priv *pdata = (struct adsp_priv *)ctrl->priv_data;
 	struct adsp_coredump *coredump;
+#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+	unsigned char fb_str[256] = "";
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	/* get adsp title and exception type*/
 	switch (ctrl->excep_id) {
@@ -207,6 +213,12 @@ static void adsp_exception_dump(struct adsp_exception_control *ctrl)
 	/* adsp aed api, only detail information available*/
 	aed_common_exception_api("adsp", (const int *)coredump, coredump_size,
 				 NULL, 0, detail, db_opt);
+
+#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+	scnprintf(fb_str, sizeof(fb_str), "payload@@%s:task:%s,%s$$fid@@123456",
+			aed_type, coredump->task_name, coredump->assert_log);
+	upload_mm_fb_kevent_to_atlas_limit(OPLUS_AUDIO_EVENTID_ADSP_CRASH, fb_str, OPLUS_FB_ADSP_CRASH_RATELIMIT);
+#endif //CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 }
 
 void adsp_aed_worker(struct work_struct *ws)

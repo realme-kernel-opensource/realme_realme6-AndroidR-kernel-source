@@ -114,10 +114,19 @@ static int Audio_i2s0_SideGen_Set(struct snd_kcontrol *kcontrol,
 	/* Config smart pa I2S pin */
 	AudDrv_GPIO_SMARTPA_Select(mi2s0_sidegen_control > 0 ? 1 : 0);
 
+#ifdef OPLUS_BUG_COMPATIBILITY
+	pr_info("%s(), sidegen = %d, hdoutput = %d, extcodec_echoref = %d, always_hd = %d\n",
+		 __func__,
+		 mi2s0_sidegen_control,
+		 hdoutput_control,
+		 extcodec_echoref_control,
+		 mtk_soc_always_hd);
+#else /* OPLUS_BUG_COMPATIBILITY */
 	pr_debug(
 		"%s(), sidegen = %d, hdoutput = %d, extcodec_echoref = %d, always_hd = %d\n",
 		__func__, mi2s0_sidegen_control, hdoutput_control,
 		extcodec_echoref_control, mtk_soc_always_hd);
+#endif /* OPLUS_BUG_COMPATIBILITY */
 
 	/* Set SmartPa i2s by platform. Return false if no platform implement,
 	 * then use default i2s3/0.
@@ -353,7 +362,12 @@ static int Audio_i2s0_hdoutput_Get(struct snd_kcontrol *kcontrol,
 static int Audio_i2s0_hdoutput_Set(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
+#ifdef OPLUS_BUG_COMPATIBILITY
+	pr_info("+%s() set %d\n", __func__, ucontrol->value.enumerated.item[0]);
+#else /* OPLUS_BUG_COMPATIBILITY */
 	pr_debug("+%s()\n", __func__);
+#endif /* OPLUS_BUG_COMPATIBILITY */
+
 	if (ucontrol->value.enumerated.item[0] > ARRAY_SIZE(i2s0_HD_output)) {
 		pr_err("return -EINVAL\n");
 		return -EINVAL;
@@ -388,7 +402,11 @@ static int Audio_i2s0_ExtCodec_EchoRef_Get(struct snd_kcontrol *kcontrol,
 static int Audio_i2s0_ExtCodec_EchoRef_Set(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
+#ifdef OPLUS_BUG_COMPATIBILITY
+	pr_info("%s() set %d\n", __func__, ucontrol->value.enumerated.item[0]);
+#else /* OPLUS_BUG_COMPATIBILITY */
 	pr_debug("%s()\n", __func__);
+#endif /* OPLUS_BUG_COMPATIBILITY */
 	if (ucontrol->value.enumerated.item[0] >
 	    ARRAY_SIZE(ExtCodec_EchoRef_Routing)) {
 		pr_err("return -EINVAL\n");

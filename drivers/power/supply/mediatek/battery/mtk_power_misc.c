@@ -33,6 +33,9 @@
 #include <mtk_gauge_time_service.h>
 #include "mtk_battery_internal.h"
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+extern int oplus_chg_get_ui_soc(void);
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
 
 struct shutdown_condition {
 	bool is_overheat;
@@ -146,6 +149,10 @@ int disable_shutdown_cond(int shutdown_cond)
 	return 0;
 }
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+extern int oplus_is_vooc_project(void);
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
+
 int set_shutdown_cond(int shutdown_cond)
 {
 	int now_current;
@@ -175,6 +182,13 @@ int set_shutdown_cond(int shutdown_cond)
 		now_is_kpoc, now_current, now_is_charging,
 		shutdown_cond_flag, vbat);
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	if (oplus_is_vooc_project() == 1) {
+		pr_err("%s: vooc_project, return directly\n", __func__);
+		return 0;
+	}
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
+
 	if (shutdown_cond_flag == 1)
 		return 0;
 
@@ -183,6 +197,13 @@ int set_shutdown_cond(int shutdown_cond)
 
 	if (shutdown_cond_flag == 3 && shutdown_cond != DLPT_SHUTDOWN)
 		return 0;
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	if (shutdown_cond == DLPT_SHUTDOWN) {
+		bm_err("[%s], DLPT_SHUTDOWN, return directly\n", __func__);
+		return 0;
+	}
+#endif /* OPLUS_FEATURE_CHG_BASIC */
 
 	switch (shutdown_cond) {
 	case OVERHEAT:
@@ -283,7 +304,11 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 	static int ui_zero_time_flag;
 	static int down_to_low_bat;
 	int now_current = 0;
+#ifndef OPLUS_FEATURE_CHG_BASIC
 	int current_ui_soc = battery_get_uisoc();
+#else  /*ODM_WT_EDIT*/
+	int current_ui_soc = oplus_chg_get_ui_soc();
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
 	int current_soc = battery_get_soc();
 	int vbat = battery_get_bat_voltage();
 	int tmp = 25;
@@ -356,9 +381,12 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 		polling++;
 		if (duraction.tv_sec >= SHUTDOWN_TIME) {
 			bm_err("dlpt shutdown\n");
+
+#ifndef OPLUS_FEATURE_CHG_BASIC
 			mutex_lock(&pm_mutex);
 			kernel_power_off();
 			mutex_unlock(&pm_mutex);
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
 			return next_waketime(polling);
 		}
 	}
@@ -513,11 +541,11 @@ static int power_misc_routine_thread(void *arg)
 			sdd->overheat = false;
 			bm_err("%s battery overheat~ power off\n",
 				__func__);
-			mutex_lock(&pm_mutex);
-			kernel_power_off();
-			mutex_unlock(&pm_mutex);
-			fix_coverity = 1;
-			return 1;
+			//mutex_lock(&pm_mutex);
+			//kernel_power_off();
+			//mutex_unlock(&pm_mutex);
+			//fix_coverity = 1;
+			//return 1;
 		}
 		if (fix_coverity == 1)
 			break;
@@ -560,10 +588,12 @@ void mtk_power_misc_init(struct platform_device *pdev)
 	init_waitqueue_head(&sdc.wait_que);
 
 	kthread_run(power_misc_routine_thread, &sdc, "power_misc_thread");
-
+#ifndef OPLUS_FEATURE_CHG_BASIC
 	sdc.psy_nb.notifier_call = mtk_power_misc_psy_event;
 	power_supply_reg_notifier(&sdc.psy_nb);
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
 	b_power_misc_init = true;
 	bm_err("%s INIT done, init:%d\n", __func__, b_power_misc_init);
+
 }
 

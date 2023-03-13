@@ -39,7 +39,9 @@ struct ccu_device_s {
 	void __iomem *pmem_base;
 	void __iomem *ddrmem_base;
 	unsigned int irq_num;
+	#ifdef OPLUS_FEATURE_CAMERA_COMMON
 	struct mutex dev_mutex;
+	#endif
 	struct mutex user_mutex;
 	struct mutex clk_mutex;
 	struct mutex ion_client_mutex;

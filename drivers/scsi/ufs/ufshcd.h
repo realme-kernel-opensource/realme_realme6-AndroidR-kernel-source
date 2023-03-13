@@ -252,6 +252,9 @@ struct ufs_desc_size {
 	int interc_desc;
 	int unit_desc;
 	int conf_desc;
+#ifdef VENDOR_EDIT
+	int hlth_desc;
+#endif
 };
 
 /**
@@ -566,14 +569,6 @@ struct ufs_stats {
 	struct ufs_err_reg_hist perf_warn;
 };
 
-/* UFSHCD states */
-enum {
-	UFSHCD_STATE_RESET,
-	UFSHCD_STATE_ERROR,
-	UFSHCD_STATE_OPERATIONAL,
-	UFSHCD_STATE_EH_SCHEDULED,
-};
-
 /* MTK PATCH UFS Host Controller debug print bitmask */
 #define UFSHCD_DBG_PRINT_CLK_FREQ_EN		UFS_BIT(0)
 #define UFSHCD_DBG_PRINT_UIC_ERR_HIST_EN	UFS_BIT(1)
@@ -599,6 +594,34 @@ enum ufs_crypto_state {
 	UFS_CRYPTO_HW_FBE             = (1 << 2),
 	UFS_CRYPTO_HW_FBE_ENCRYPTED   = (1 << 3),
 };
+
+#ifdef OPLUS_FEATURE_MIDAS
+struct ufs_transmission_status_t
+{
+	u8  transmission_status_enable;
+
+	u64 gear_min_write_sec;
+	u64 gear_max_write_sec;
+	u64 gear_min_read_sec;
+	u64 gear_max_read_sec;
+
+	u64 gear_min_write_us;
+	u64 gear_max_write_us;
+	u64 gear_min_read_us;
+	u64 gear_max_read_us;
+
+	u64 gear_min_dev_us;
+	u64 gear_max_dev_us;
+
+	u64 gear_min_other_sec;
+	u64 gear_max_other_sec;
+	u64 gear_min_other_us;
+	u64 gear_max_other_us;
+
+	u64 scsi_send_count;
+	u64 dev_cmd_count;
+};
+#endif /*OPLUS_FEATURE_MIDAS*/
 
 /**
  * struct ufs_hba - per adapter private structure
@@ -760,12 +783,6 @@ struct ufs_hba {
 	#define UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION		UFS_BIT(5)
 
 	/*
-	 * This quirk needs to be enabled if we apply performance heuristic
-	 * to UFS host.
-	 */
-	#define UFSHCD_QUIRK_UFS_HCI_PERF_HEURISTIC		UFS_BIT(6)
-
-	/*
 	 * This quirk needs to be enabled if the host contoller regards
 	 * resolution of the values of PRDTO and PRDTL in UTRD as byte.
 	 */
@@ -792,16 +809,11 @@ struct ufs_hba {
 	 */
 	#define UFSHCD_QUIRK_UFS_HCI_DISABLE_AH8_BEFORE_RDB	UFS_BIT(10)
 
-	/*
+    /*
 	 * This quirk needs to be enabled if the host controller advertises
 	 * inline encryption support but it doesn't work correctly.
 	 */
 	#define UFSHCD_QUIRK_BROKEN_CRYPTO			UFS_BIT(11)
-
-	/*
-	 * This quirk needs to be enabled if VCC drop slow
-	 */
-	#define UFSHCD_QUIRK_UFS_VCC_ALWAYS_ON			UFS_BIT(12)
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
@@ -825,11 +837,9 @@ struct ufs_hba {
 	bool is_powered;
 	bool is_init_prefetch;
 	struct ufs_init_prefetch init_prefetch_data;
-	struct semaphore eh_sem;
 
 	/* Work Queues */
 	struct work_struct eh_work;
-	struct work_struct inv_resp_work;
 	struct work_struct eeh_work;
 	struct work_struct rls_work;
 
@@ -901,7 +911,10 @@ struct ufs_hba {
 
 	struct rw_semaphore clk_scaling_lock;
 	struct ufs_desc_size desc_size;
-
+#ifdef VENDOR_EDIT
+	int latency_hist_enabled;
+	struct io_latency_state io_lat_s;
+#endif
 	/* MTK PATCH */
 	/* record vendor id for vendor-specific configurations */
 	u32 manu_id;
@@ -960,8 +973,10 @@ struct ufs_hba {
 	void *crypto_DO_NOT_USE[8];
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
 
-	u32 ufs_mtk_qcmd_r_cmd_cnt;
-	u32 ufs_mtk_qcmd_w_cmd_cnt;
+#ifdef OPLUS_FEATURE_MIDAS
+	struct ufs_transmission_status_t ufs_transmission_status;
+	struct device_attribute ufs_transmission_status_attr;
+#endif
 };
 
 /* MTK PATCH */

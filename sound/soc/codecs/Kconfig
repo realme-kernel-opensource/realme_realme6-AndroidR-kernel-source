@@ -1239,4 +1239,15 @@ config SND_SOC_RT5509
 	depends on I2C
 	select RT_REGMAP
 
+#ifdef OPLUS_BUG_COMPATIBILITY
+config SND_SOC_ALSACODEC_TFA9890
+	bool "Use TFA9890 As ALSACODEC"
+	default n
+#endif /* OPLUS_BUG_COMPATIBILITY */
 endmenu
+
+#ifdef OPLUS_BUG_COMPATIBILITY
+config SND_SOC_CODEC_AW87339
+	bool "Use AW87339 As PA"
+	default n
+#endif /* OPLUS_BUG_COMPATIBILITY */

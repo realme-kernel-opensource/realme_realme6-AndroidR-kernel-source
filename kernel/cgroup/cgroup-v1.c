@@ -13,6 +13,9 @@
 #include <linux/delayacct.h>
 #include <linux/pid_namespace.h>
 #include <linux/cgroupstats.h>
+#ifdef OPLUS_FEATURE_HANS_FREEZE
+#include <linux/freezer.h>
+#endif /*OPLUS_FEATURE_HANS_FREEZE*/
 
 #include <trace/events/cgroup.h>
 #ifdef CONFIG_MTK_TASK_TURBO
@@ -385,11 +388,6 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	while ((tsk = css_task_iter_next(&it))) {
 		if (unlikely(n == length))
 			break;
-
-		/* mtk: don't get pid when proc/task killed */
-		if ((SIGNAL_GROUP_EXIT & tsk->signal->flags) ||
-			(PF_EXITING & tsk->flags))
-			continue;
 
 		/* get tgid or pid for procs or tasks file respectively */
 		if (type == CGROUP_FILE_PROCS)

@@ -261,8 +261,10 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 	/* Corruption should be visible in device status in all modes */
 	v->hash_failed = 1;
 
-	if (v->corrupted_errs >= DM_VERITY_MAX_CORRUPTED_ERRS)
+	if (v->corrupted_errs >= DM_VERITY_MAX_CORRUPTED_ERRS) {
+		DMERR("%s: reached maximum errors", v->data_dev->name);
 		goto out;
+	}
 
 	v->corrupted_errs++;
 
@@ -288,6 +290,9 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 
 	kobject_uevent_env(&disk_to_dev(dm_disk(md))->kobj, KOBJ_CHANGE, envp);
 
+	/* corrupted_errs count had not reached limits */
+	return 0;
+
 out:
 	if (v->mode == DM_VERITY_MODE_LOGGING)
 		return 0;
@@ -296,7 +301,10 @@ out:
 #ifdef CONFIG_DM_VERITY_AVB
 		dm_verity_avb_error_handler();
 #endif
-		kernel_restart("dm-verity device corrupted");
+
+//#ifdef VENDOR_EDIT
+		panic("dm-verity device corrupted");
+//#endif /* VENDOR_EDIT */
 	}
 
 	return 1;
@@ -516,7 +524,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 	struct bvec_iter start;
 	unsigned b;
 	struct verity_result res;
-
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 	for (b = 0; b < io->n_blocks; b++) {
 		int r;
 		sector_t cur_block = io->block + b;
@@ -570,9 +578,17 @@ static int verity_verify_io(struct dm_verity_io *io)
 		else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
 					   cur_block, NULL, &start) == 0)
 			continue;
-		else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
+		else{
+			if (bio->bi_status) {
+				/*
+				* Error correction failed; Just return error
+				*/
+				return -EIO;
+			}
+			if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
 					   cur_block))
 			return -EIO;
+		}
 	}
 
 	return 0;

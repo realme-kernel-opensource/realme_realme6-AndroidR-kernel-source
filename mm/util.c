@@ -17,6 +17,9 @@
 
 #include <asm/sections.h>
 #include <linux/uaccess.h>
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+#include <linux/resmap_account.h>
+#endif
 
 #include "internal.h"
 
@@ -238,13 +241,20 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 		struct vm_area_struct *prev, struct rb_node *rb_parent)
 {
 	struct vm_area_struct *next;
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+	struct vm_area_struct *curr_vma = NULL;
+#endif
 
 	vma->vm_prev = prev;
 	if (prev) {
 		next = prev->vm_next;
 		prev->vm_next = vma;
 	} else {
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+		curr_vma = vma;
+#else
 		mm->mmap = vma;
+#endif
 		if (rb_parent)
 			next = rb_entry(rb_parent,
 					struct vm_area_struct, vm_rb);
@@ -254,6 +264,15 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 	vma->vm_next = next;
 	if (next)
 		next->vm_prev = vma;
+
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+	if (curr_vma) {
+		if (BACKUP_ALLOC_FLAG(vma->vm_flags))
+			mm->reserve_mmap = curr_vma;
+		else
+			mm->mmap = curr_vma;
+	}
+#endif
 }
 
 /* Check if the vma is being used as a stack by this task */
@@ -332,6 +351,10 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 			return -EINTR;
 		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
 				    &populate, &uf);
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+		if (!IS_ERR_VALUE(ret) && check_reserve_mmap_doing(mm))
+			mm->mmap_base += RESERVE_VMAP_AREA_SIZE;
+#endif
 		up_write(&mm->mmap_sem);
 		userfaultfd_unmap_complete(mm, &uf);
 		if (populate)
@@ -353,6 +376,7 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
 }
 EXPORT_SYMBOL(vm_mmap);
 
+#define KMALLOC_MAX_PAGES 8
 /**
  * kvmalloc_node - attempt to allocate physically contiguous memory, but upon
  * failure, fall back to non-contiguous (vmalloc) allocation.
@@ -374,6 +398,10 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 {
 	gfp_t kmalloc_flags = flags;
 	void *ret;
+
+	/*do not attempt kmalloc if we need more than KMALLOC_MAX_PAGES pages at once*/
+	if (size >= KMALLOC_MAX_PAGES * PAGE_SIZE)
+		goto use_vmalloc;
 
 	/*
 	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
@@ -404,7 +432,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	 */
 	if (ret || size <= PAGE_SIZE)
 		return ret;
-
+use_vmalloc:
 	return __vmalloc_node_flags_caller(size, node, flags,
 			__builtin_return_address(0));
 }

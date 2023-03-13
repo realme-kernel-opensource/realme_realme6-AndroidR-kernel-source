@@ -26,6 +26,14 @@
 #include <linux/page_ref.h>
 #include <linux/memremap.h>
 
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+#include <linux/sched.h>
+#include <linux/vm_anti_fragment.h>
+extern void account_vma_alloc_err(unsigned long len);
+extern int cpu_oom_event_enable;
+extern void trigger_cpu_oom_event(unsigned long len);
+#endif
+
 struct mempolicy;
 struct anon_vma;
 struct anon_vma_chain;
@@ -215,6 +223,14 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_HUGEPAGE	0x20000000	/* MADV_HUGEPAGE marked this vma */
 #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
 #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
+
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+#define VM_BACKUP_CREATE 0x100000000UL	/* Created backup vma for emergency */
+#define VM_BACKUP_ALLOC  0x200000000UL	/* Alloced memory from backup vma */
+
+#define BACKUP_ALLOC_FLAG(vm_flags) ((vm_flags) & VM_BACKUP_ALLOC)
+#define BACKUP_CREATE_FLAG(vm_flags) ((vm_flags) & VM_BACKUP_CREATE)
+#endif
 
 #ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
 #define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
@@ -2399,6 +2415,11 @@ struct vm_unmapped_area_info {
 extern unsigned long unmapped_area(struct vm_unmapped_area_info *info);
 extern unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
 
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+#define VMA_BIG_SIZE (0x40000)
+extern int vm_search_two_way;
+#endif
+
 /*
  * Search for an unmapped address range.
  *
@@ -2411,6 +2432,21 @@ extern unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
 static inline unsigned long
 vm_unmapped_area(struct vm_unmapped_area_info *info)
 {
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+
+    if (!test_thread_flag(TIF_32BIT) || !current->mm)
+        goto no_32bit;
+
+    if (!current->mm->vm_search_two_way || (vm_search_two_way != 3))
+		goto no_32bit;
+
+    if (info->length >= VMA_BIG_SIZE)
+        return unmapped_area_topdown(info);
+	else
+        return unmapped_area(info);
+
+no_32bit:
+#endif
 	if (info->flags & VM_UNMAPPED_AREA_TOPDOWN)
 		return unmapped_area_topdown(info);
 	else
@@ -2434,7 +2470,11 @@ int __must_check write_one_page(struct page *page);
 void task_dirty_inc(struct task_struct *tsk);
 
 /* readahead.c */
+#ifndef OPLUS_FEATURE_CHG_BASIC
 #define VM_MAX_READAHEAD	128	/* kbytes */
+#else
+#define VM_MAX_READAHEAD	512	/* kbytes */
+#endif /*OPLUS_FEATURE_CHG_BASIC*/
 #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
 
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
@@ -2486,6 +2526,11 @@ static inline unsigned long vm_start_gap(struct vm_area_struct *vma)
 {
 	unsigned long vm_start = vma->vm_start;
 
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+	if (BACKUP_ALLOC_FLAG(vma->vm_flags))
+		return vm_start;
+#endif
+
 	if (vma->vm_flags & VM_GROWSDOWN) {
 		vm_start -= stack_guard_gap;
 		if (vm_start > vma->vm_start)
@@ -2497,6 +2542,11 @@ static inline unsigned long vm_start_gap(struct vm_area_struct *vma)
 static inline unsigned long vm_end_gap(struct vm_area_struct *vma)
 {
 	unsigned long vm_end = vma->vm_end;
+
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+	if (BACKUP_ALLOC_FLAG(vma->vm_flags))
+		return vm_end;
+#endif
 
 	if (vma->vm_flags & VM_GROWSUP) {
 		vm_end += stack_guard_gap;
